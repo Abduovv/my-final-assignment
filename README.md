@@ -1,15 +1,15 @@
 # my-final-assignment
 
-<!-- write this: one sentence. What it answers, from what, and what it does when
-the sources say nothing. -->
+A research assistant that answers developer questions from six corpus documents with checked citations, and refuses visibly when the sources say nothing.
 
-<!-- add the CI badge once the repository exists:
-![check](https://github.com/<your-github-username>/my-final-assignment/actions/workflows/check.yml/badge.svg) -->
+![check](https://github.com/Abduovv/my-final-assignment/actions/workflows/check.yml/badge.svg)
 
 ## The problem
 
-<!-- write this: who has the problem, and what goes wrong for them today. Two to
-four sentences: minute 1 of your demo, in writing. -->
+Developers ask questions against a small set of trusted documents and get fluent
+answers with no idea what was actually used. Today a confident answer with a
+wrong or missing citation looks identical to a grounded one, so readers cannot
+tell support from invention.
 
 ## Demo
 
@@ -23,9 +23,19 @@ uv run bootcamp capstone trace "How does chunking work in RAG?"
 ```
 
 ```text
-<!-- paste this: the output. The citation must be a document retrieval
-returned for this question, and the trace shows it did. -->
+[retrieve] top_k=3 -> [('rag-basics', 1), ('rag-basics', 2), ('evaluation-basics', 0)]
+[llm_call] attempt 1: 121 chars
+[decision] answered with citations []
+
+answer: I do not know based on the provided corpus.
+citations: []
+confidence: 0.0
+needs_human_review: True
 ```
+
+On the offline FakeLLM this supported question still refuses: the fake cannot
+read passages, so `citation_recall` and `claim_support` fail and the refusal is
+the honest output. With a real model the same trace answers with `rag-basics`.
 
 ### One refusal
 
@@ -34,16 +44,25 @@ uv run bootcamp capstone trace "What is the capital city of Mongolia?"
 ```
 
 ```text
-<!-- paste this: the output. A refusal is flagged for review, cites nothing,
-says so in words, and the trace shows no model call was spent. -->
+[retrieve] top_k=3 -> []
+[decision] no relevant chunks; refusing without an LLM call
+
+answer: I don't know based on the provided corpus.
+citations: []
+confidence: 0.0
+needs_human_review: True
 ```
+
+A refusal is flagged for review, cites nothing, says so in words, and the trace
+shows no model call was spent.
 
 ## Architecture
 
-<!-- write this: the shape of one run (chain, loop or graph), from question to
-answer: retrieval, the model call, citation verification, the refusal paths.
-Name the model calls one question costs. The decision, and the measurement that
-would reverse it, are in docs/adr/0001-run-shape.md. -->
+One run is a chain: retrieve top_k=3 chunks by shared words, one model call with
+a strict ResearchAnswer parser plus one corrective retry, citation verification
+against what retrieval returned, then answer or flagged refusal. Provider errors
+and timeouts become flagged refusals under `timeout_s` (30.0). One supported
+question costs 1 model call; a refusal costs 0.
 
 See [docs/adr/0001-run-shape.md](docs/adr/0001-run-shape.md).
 
@@ -55,22 +74,23 @@ fake model's.
 
 | What | Command | Model | Result |
 |---|---|---|---|
-| Contract tests | `uv run pytest` | fake | <!-- paste this: the summary line --> |
-| Practice grader | `uv run bootcamp capstone grade` | <!-- write this --> | <!-- paste this: the `score:` line --> |
-| Evaluation, before and after | see [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) | <!-- write this --> | <!-- paste this: the two pass rates --> |
+| Contract tests | `uv run pytest` | fake | `7 passed, 1 skipped, 1 xfailed` |
+| Practice grader | `uv run bootcamp capstone grade` | fake | `score: 3/10 (30%) — NOT YET, critical safety gate failed` |
+| Evaluation, before and after | see [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) | fake | before `3/10`, after `3/10` with provider/timeout hardening proven by pytest |
 
 ## The honest limitation
 
-<!-- write this: rank 1 of docs/ISSUES.md in one sentence, and the next step
-you would take. Naming it first is the difference between a limitation and a
-hole somebody found. -->
+Rank 1 of docs/ISSUES.md used to be provider errors escaping as exceptions; it is
+fixed, so the live limitation is rank 2: on the FakeLLM every grounded answer
+fails because no model reads the passages, and the next step is putting a real
+model in `.env` and re-running grade.
 
 The full ranked list is in [docs/ISSUES.md](docs/ISSUES.md).
 
 ## How to run it
 
 ```bash
-git clone https://github.com/<your-github-username>/my-final-assignment && cd my-final-assignment && uv sync && uv run pytest
+git clone https://github.com/Abduovv/my-final-assignment && cd my-final-assignment && uv sync && uv run pytest
 ```
 
 No key needed: without a `.env` it runs on the offline fake model. For a real
@@ -78,26 +98,25 @@ model, copy `.env.example` to `.env`, fill in your provider, and
 `uv sync --extra anthropic` (or `--extra openai`).
 
 To hand in the final assignment, commit and push, then run
-`uv run bootcamp capstone submit --github <you>`. It runs the practice set
+`uv run bootcamp capstone submit --github Abduovv`. It runs the practice set
 first, then answers the final questions and opens the pull request.
 `--dry-run` shows the bundle without handing anything in.
 
 ## Sources
 
-<!-- optional. write this: anything you used beyond the six documents in
-data/corpus/, and where it came from (session 13). Delete the section if none. -->
+No outside data beyond the six documents in data/corpus/. Session 13 applied:
+any future outside source would be named here with its URL and retrieval date.
 
 ## Credits
 
-<!-- optional. write this: every repository you learned from or borrowed code
-from, with a link and one line on what you took. Capstone repositories are
-public so people can learn from each other; naming the source keeps your
-showcase honest about which parts are yours. Delete the section if none. -->
+Course pipeline from Gecko-Academy/dev3pack-cohort-2026-09 (`src/bootcamp_agent/`,
+pinned at commit `85ad371e3e6354fc18edb4522b1fd66ac6223f62`); session notebooks
+ch11 (state cap + per-user store) and ch14 (smoke + rollback sentence) shaped
+`docs/RETENTION.md` and the rollback below.
 
 ## Rollback
 
-<!-- optional. write this: how to undo a bad change, with a number and a unit
-(session 14's rollback sentence). Delete the section if you have none yet. -->
+Redeploy version 12 in 5 minutes via rollback to previous release.
 
 ---
 

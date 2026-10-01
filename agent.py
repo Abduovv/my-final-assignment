@@ -28,6 +28,21 @@ from bootcamp_agent.llm import LLMClient, get_client
 from bootcamp_agent.schema import ResearchAnswer
 from bootcamp_agent.tools import Tool, build_tools
 
+
+def _flagged_refusal(text: str = "I don't know based on the provided corpus.") -> ResearchAnswer:
+    """A refusal as a value: flagged, cited nothing, low confidence.
+
+    Session 2 (ch02-e4) taught the shape; session 14 wires it into YourAgent so
+    a provider error or timeout never escapes as an exception.
+    """
+    return ResearchAnswer(
+        answer=text,
+        citations=(),
+        confidence=0.0,
+        needs_human_review=True,
+    )
+
+
 #: The six course documents, copied in by `bootcamp capstone new`. Versioned
 #: input: nothing you build writes to it.
 CORPUS_DIR = Path(__file__).resolve().parent / "data" / "corpus"
@@ -51,14 +66,37 @@ class YourAgent:
         self.tools: dict[str, Tool] = build_tools(self.documents, self.client)
 
     def run(self, question: str) -> AgentResult:
-        """One question, answered or refused, with the trace of how."""
-        return answer_question(
-            question,
-            self.documents,
-            self.client,
-            max_tool_calls=3,
-            top_k=3,
-        )
+        """One question, answered or refused, with the trace of how.
+
+        Hardening (sessions 2/14): the provider runs under ``timeout_s`` and any
+        provider error becomes a flagged refusal, never a raised exception. The
+        timeout uses a worker thread so a hanging provider cannot hang the run.
+        """
+        import concurrent.futures
+
+        def _answer() -> AgentResult:
+            return answer_question(
+                question,
+                self.documents,
+                self.client,
+                max_tool_calls=3,
+                top_k=3,
+            )
+
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = pool.submit(_answer)
+            try:
+                return future.result(timeout=self.timeout_s)
+            except Exception:
+                from bootcamp_agent.agent import TraceEvent
+
+                return AgentResult(
+                    answer=_flagged_refusal(),
+                    trace=(TraceEvent("decision", "provider error or timeout; flagged refusal"),),
+                )
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
 
     def __call__(self, question: str) -> ResearchAnswer:
         return self.run(question).answer

@@ -3,16 +3,21 @@
 **Filled by:** session 11. The five lines are the ones `ch11-e2` reads, in the
 same words; answer each one after its colon.
 
-STORED: <!-- write this: exactly what a session keeps, e.g. preferences and the last N episodes -->
+STORED: one answer_style preference and the last 5 question summaries (episodes).
 
-WHY: <!-- write this: what each stored thing is used for -->
+WHY: to personalize answers and keep recent context without unbounded growth.
 
-CORRECTED BY: <!-- write this: how a user fixes or clears what was stored -->
+CORRECTED BY: the user editing preferences or asking again; reset() clears both.
 
-EXPIRES: <!-- write this: when it is deleted, with a number and a unit, and the cap -->
+EXPIRES: episodes expire after 5 entries; preferences expire on reset or user change.
 
-WE REFUSE TO REMEMBER: <!-- write this: what is never stored, whatever the user types (keys, personal data, ...) -->
+WE REFUSE TO REMEMBER: personal data, secrets, credentials, payment details, anything we cannot justify keeping.
 
 ## How the code enforces it
 
-<!-- write this: the test in tests/ that proves the cap and the reset. -->
+The capstone agent itself keeps no cross-question memory yet, so there is no
+retention to enforce in `agent.py`. The placeholder contract test
+`test_memory_is_capped_reset_and_kept_per_user` in tests/test_contract.py stays
+`skip` until session 11 is wired; the reference implementation that proves the
+cap (last 5 episodes), the reset, and per-user isolation lives in the ch11
+notebook (`answer_with_state` plus `MemoryStore`).

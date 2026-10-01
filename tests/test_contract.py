@@ -197,16 +197,8 @@ class BrokenLLM:
         raise ConnectionError("provider unreachable")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "session 2 taught the refusal as a value (ch02-e4); wiring it into YourAgent "
-        "is the hardening after session 14. Catch the provider's error, return a "
-        "flagged refusal, then delete this marker."
-    ),
-)
 def test_provider_error_is_flagged_not_raised() -> None:
+    """Session 14 hardening: provider errors become flagged refusals (rank 1 fix)."""
     model = BrokenLLM()
     try:
         answer = YourAgent(client=model)(SUPPORTED)
@@ -235,16 +227,8 @@ class HangingLLM:
 DEADLINE_S = 1.0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "session 2 taught the deadline (a timeout is an exception you turn into a "
-        "refusal); enforcing YourAgent.timeout_s is the hardening after session 14. "
-        "Then delete this marker."
-    ),
-)
 def test_timeout_on_a_hanging_provider_is_flagged_within_a_second() -> None:
+    """Session 14 hardening: YourAgent.timeout_s bounds a hanging provider."""
     model = HangingLLM()
     agent = YourAgent(client=model)
     agent.timeout_s = 0.2
@@ -300,9 +284,19 @@ def test_memory_is_capped_reset_and_kept_per_user() -> None:
     raise NotImplementedError
 
 
-@pytest.mark.skip(
-    reason="session 14: the regression test for rank 1 of docs/ISSUES.md. Write it red "
-    "against the bug, fix the bug, watch it go green."
-)
 def test_regression_rank_1_of_the_issue_list() -> None:
-    raise NotImplementedError
+    """Session 14 regression test for ISSUES.md rank 1.
+
+    Rank 1: provider errors escaped as exceptions instead of flagged refusals.
+    A down provider must cost model calls but never crash the run: the answer
+    is flagged for review, cites nothing, and confidence stays at 0.0.
+    """
+    model = BrokenLLM()
+    try:
+        answer = YourAgent(client=model)(SUPPORTED)
+    except Exception as error:  # noqa: BLE001 - escaping at all is the failure
+        name = type(error).__name__
+        raise AssertionError(f"rank 1 regressed: {name} escaped: {error}") from error
+
+    assert model.calls >= 1
+    assert _is_flagged_refusal(answer), answer
