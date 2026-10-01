@@ -31,7 +31,7 @@ from bootcamp_agent.agent import (
 from bootcamp_agent.config import load_settings
 from bootcamp_agent.documents import Document, load_corpus
 from bootcamp_agent.llm import LLMClient, get_client
-from bootcamp_agent.retrieval import retrieve
+from bootcamp_agent.retrieval import _tokens, retrieve
 from bootcamp_agent.schema import AnswerParseError, ResearchAnswer, parse_research_answer
 from bootcamp_agent.tools import Tool, build_tools
 
@@ -48,6 +48,27 @@ def _flagged_refusal(text: str = "I don't know based on the provided corpus.") -
         confidence=0.0,
         needs_human_review=True,
     )
+
+
+#: Fallback query expansion (sessions 6/7), derived ONLY from the question's own
+#: words: the course tokenizer's content tokens plus one morphological stem each.
+#: Used ONLY when plain retrieval finds nothing, so questions that already
+#: retrieve and questions nothing supports behave exactly as before; only a
+#: would-be refusal can gain overlap. A truly unsupported question still meets
+#: nothing and refuses with zero model calls.
+def _stem(token: str) -> str:
+    """Strip one common suffix when the stem stays word-like."""
+    for suffix in ("ing", "ed", "es", "s"):
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            return token[: -len(suffix)]
+    return token
+
+
+def _expanded_query(question: str) -> str:
+    """The question plus its content-token stems, for fallback retrieval only."""
+    words = set(_tokens(question))
+    stems = {_stem(w) for w in words}
+    return question + " " + " ".join(sorted(stems - words))
 
 
 #: Session 10 skill as a system-prompt upgrade: general coverage and citation
@@ -119,6 +140,8 @@ class YourAgent:
         def _answer() -> AgentResult:
             trace: list[TraceEvent] = []
             scored = retrieve(question, self.documents, top_k=5)
+            if not scored:
+                scored = retrieve(_expanded_query(question), self.documents, top_k=5)
             trace.append(
                 TraceEvent(
                     "retrieve",
