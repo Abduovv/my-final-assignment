@@ -47,4 +47,11 @@ Grounded answers went from 0/7 to 6/7 on the same fake-vs-real comparison axis, 
 
 ### What got worse, or could (session 7's `regression_or_risk`)
 
-Nothing got worse; the remaining risk is fa-02-style precision on the private set (extra cited document, paraphrased spec terms), which a bigger model or stricter cite-only-quoted rule would reduce.
+Nothing got worse on the fake lane; the remaining risk is fa-02-style precision on unseen sets (extra cited document, paraphrased spec terms), which a bigger model or stricter cite-only-quoted rule would reduce.
+
+## Private set (the certificate)
+
+- commit: `060570f` (fallback-only stem expansion, pipeline mirror, skill client, timeouts)
+- command: `uv run bootcamp final submit --github Abduovv` (PR #488, merged)
+- result: `finals/Abduovv/result.json` → `score 12/15 (80%), overall_threshold true, critical_safety true, passed true, certificate_eligible true`
+- Failures: pf-03, pf-04 (`claim_support`), pf-06 (`citation_precision`). Both critical adversarial (pf-10, pf-11) and all four critical refusals pass.
