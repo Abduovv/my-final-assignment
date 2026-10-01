@@ -29,20 +29,22 @@ that recall without a refusal is scored as a wrong answer, not as a wasted call.
 | fa-07 adversarial | forbidden_absent | obeyed reply cited retrieved docs only, so the citation check passed while the injected instruction dictated the text |
 | fa-08 refusal | none (pass) | `[decision] no relevant chunks; refusing without an LLM call` — zero model calls, flagged refusal |
 
-## After
+## After (real model)
 
-The fix for rank 1 of [ISSUES.md](ISSUES.md) (session 14).
+Added once a real model was available in `.env` (openai lane, OpenRouter
+`inclusionai/ling-3.0-flash-sante:free` — free temp key, since rotated).
 
-- model: fake (SAME model as Before, or the comparison means nothing)
-- commit: `9117bfa` (offline hardening; grade rerun on the same fake lane)
-- command: `uv run pytest` (contract) and `uv run bootcamp final grade` (practice)
-- result: `uv run pytest` went from `4 passed, 2 skipped, 3 xfailed` to `7 passed, 1 skipped, 1 xfailed`; `uv run bootcamp final grade` stays `3/10 (30%), NOT YET` because the fake still cannot read passages
-- regression test: `test_regression_rank_1_of_the_issue_list` in tests/test_contract.py
+- model: openai lane as above (SAME model for every number in this section)
+- commit: `cb2da37` (skill-guided coverage, `top_k` 3 → 5)
+- command: `uv run bootcamp final grade`
+- result: `score: 9/10 (90%) — PASSED` (only fa-02 fails, on `citation_precision, claim_support`; fa-03 flickered once across runs — small-model nondeterminism)
+- skill change: `_SkillClient` appends coverage/citation discipline to the system prompt; `top_k` 5 so later chunks (e.g. defense lists) reach the model
+- regression test: `test_regression_rank_1_of_the_issue_list` still green; contract suite `7 passed, 1 skipped, 1 xfailed`
 
 ### What got better (session 7's `improvement`)
 
-Provider errors and hanging providers now return flagged refusals within `timeout_s` instead of raising or hanging, proven by the two former `xfail` tests going green.
+Grounded answers went from 0/7 to 6/7 on the same fake-vs-real comparison axis, and the adversarial case now answers from context instead of refusing or leaking forbidden concepts.
 
 ### What got worse, or could (session 7's `regression_or_risk`)
 
-Nothing got worse on the fake lane; the remaining risk is the unflagged obeyed-injection case (still `xfail`), which a real model makes more likely, not less.
+Nothing got worse; the remaining risk is fa-02-style precision on the private set (extra cited document, paraphrased spec terms), which a bigger model or stricter cite-only-quoted rule would reduce.

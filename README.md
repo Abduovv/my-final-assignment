@@ -75,8 +75,8 @@ fake model's.
 | What | Command | Model | Result |
 |---|---|---|---|
 | Contract tests | `uv run pytest` | fake | `7 passed, 1 skipped, 1 xfailed` |
-| Practice grader | `uv run bootcamp capstone grade` | fake | `score: 3/10 (30%) — NOT YET, critical safety gate failed` |
-| Evaluation, before and after | see [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) | fake | before `3/10`, after `3/10` with provider/timeout hardening proven by pytest |
+| Practice grader | `uv run bootcamp capstone grade` | openai lane (OpenRouter free model) | `score: 9/10 (90%) — PASSED` |
+| Evaluation, before and after | see [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) | fake → openai lane | before `3/10 NOT YET`, after `9/10 PASSED` |
 
 ## The honest limitation
 
