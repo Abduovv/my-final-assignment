@@ -50,39 +50,6 @@ def _flagged_refusal(text: str = "I don't know based on the provided corpus.") -
     )
 
 
-#: Session 6/7 query expansion, built only from the question's own words: strip
-#: a small stopword set and add morphological stems, so a paraphrased question
-#: still meets the corpus while an unsupported question still meets nothing.
-_STOPWORDS = frozenset(
-    "what why how when where which who whom whose what is are was were be been "
-    "being do does did done have has had having will would should could can may "
-    "might must shall the a an and or but if then than that this these those it "
-    "its of in on at to for with by from as into over after before between me my "
-    "you your he him his she her we our they their them there here not no yes just "
-    "tell explain describe give list tell me please".split()
-)
-
-
-def _stem(token: str) -> str:
-    """A tiny stemmer: strip one common suffix when the stem stays word-like."""
-    for suffix in ("ing", "ed", "es", "s"):
-        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
-            return token[: -len(suffix)]
-    return token
-
-
-def _expanded_query(question: str) -> str:
-    """The question plus its content-word stems, for lexical retrieval.
-
-    Only derived from the question itself, so truly unsupported questions gain
-    no overlap and still refuse with zero model calls.
-    """
-    words = [w.strip(".,?:;!\"'()").lower() for w in question.split()]
-    words = [w for w in words if w and w not in _STOPWORDS]
-    stems = {_stem(w) for w in words}
-    return question + " " + " ".join(sorted(set(words) | stems))
-
-
 #: Session 10 skill as a system-prompt upgrade: general coverage and citation
 #: discipline, no question-specific tuning. Appended to the pipeline's own
 #: system prompt on every call, so the contract tests (which use fixed fake
@@ -138,11 +105,10 @@ class YourAgent:
     def run(self, question: str) -> AgentResult:
         """One question, answered or refused, with the trace of how.
 
-        The course pipeline, with session 6/7 query expansion: retrieval runs on
-        the expanded query while the model still sees the original question, so a
-        paraphrased question meets the corpus and an unsupported one still meets
-        nothing. Every other step (parse, retry once, citation verification,
-        refusal paths) matches the reference pipeline exactly.
+        The course pipeline, step for step (retrieve top_k=5, one model call with the
+        skill on the system prompt, parse with one retry, citation verification,
+        refusal paths): reimplemented here so the timeout wrapper bounds the whole
+        run, instead of only the provider call.
 
         Hardening (sessions 2/14): the provider runs under ``timeout_s`` and any
         provider error becomes a flagged refusal, never a raised exception. The
@@ -152,13 +118,11 @@ class YourAgent:
 
         def _answer() -> AgentResult:
             trace: list[TraceEvent] = []
-            scored = retrieve(_expanded_query(question), self.documents, top_k=5)
-            plain = retrieve(question, self.documents, top_k=5)
+            scored = retrieve(question, self.documents, top_k=5)
             trace.append(
                 TraceEvent(
                     "retrieve",
-                    f"top_k=5 -> {[(s.chunk.doc_id, s.chunk.position) for s in scored]}"
-                    + (" (expanded; plain query found nothing)" if not plain and scored else ""),
+                    f"top_k=5 -> {[(s.chunk.doc_id, s.chunk.position) for s in scored]}",
                 )
             )
             if not scored:
