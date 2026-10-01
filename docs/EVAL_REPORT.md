@@ -34,7 +34,7 @@ that recall without a refusal is scored as a wrong answer, not as a wasted call.
 The fix for rank 1 of [ISSUES.md](ISSUES.md) (session 14).
 
 - model: fake (SAME model as Before, or the comparison means nothing)
-- commit: see commit after `Lock the course package` with `agent.py` hardening
+- commit: `9117bfa` (offline hardening; grade rerun on the same fake lane)
 - command: `uv run pytest` (contract) and `uv run bootcamp final grade` (practice)
 - result: `uv run pytest` went from `4 passed, 2 skipped, 3 xfailed` to `7 passed, 1 skipped, 1 xfailed`; `uv run bootcamp final grade` stays `3/10 (30%), NOT YET` because the fake still cannot read passages
 - regression test: `test_regression_rank_1_of_the_issue_list` in tests/test_contract.py
